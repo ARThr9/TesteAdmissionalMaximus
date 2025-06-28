@@ -1,0 +1,65 @@
+.login-container {
+  background: black;
+  color: white;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: sans-serif;
+}
+
+.login-box {
+  padding: 40px;
+  background: #1a1a1a;
+  border-radius: 10px;
+  text-align: center;
+  width: 320px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+}
+
+.login-box h2 {
+  color: lightgreen;
+  margin-top: 0;
+  margin-bottom: 25px;
+  font-size: 24px;
+}
+
+.login-box .error-message {
+  color: #ff8a80; /* Um vermelho mais suave */
+  margin: -10px 0 15px 0;
+  font-size: 14px;
+  text-align: left;
+}
+
+.login-box input {
+  width: calc(100% - 20px); /* Largura total menos o padding */
+  margin-bottom: 20px;
+  padding: 10px;
+  border: 1px solid #333;
+  border-radius: 4px;
+  background: #2b2b2b;
+  color: white;
+  font-size: 16px;
+}
+
+.login-box input:focus {
+  outline: none;
+  border-color: lightgreen;
+}
+
+.login-box button {
+  background: green;
+  color: white;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  width: 100%;
+  font-size: 16px;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+}
+
+.login-box button:hover {
+  background: #006400; /* darkgreen */
+}
