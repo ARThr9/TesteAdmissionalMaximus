@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "../supabaseClient";
-import styles from "./Produtos.module.css"; // Importa o arquivo CSS Module
+import styles from "./Produtos.module.css";
 import {
   PlusCircle,
   Edit,
@@ -13,6 +13,36 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { exportToExcel, exportToPDF } from "../utils/exportUtils";
+
+// Função para checar e formatar a validade
+const getValidadeStatus = (validade) => {
+  if (!validade) {
+    return { text: "N/A", className: "" };
+  }
+
+  const hoje = new Date();
+  const dataValidade = new Date(validade);
+  hoje.setHours(0, 0, 0, 0); // Zera o horário para comparar apenas a data
+
+  // Calcula a diferença em dias
+  const diffTime = dataValidade.getTime() - hoje.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  const dataFormatada = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "UTC",
+  }).format(dataValidade);
+
+  if (diffDays < 0) {
+    return { text: `${dataFormatada} (Vencido)`, className: styles.vencido };
+  }
+  if (diffDays <= 7) {
+    return {
+      text: `${dataFormatada} (Vence em ${diffDays}d)`,
+      className: styles.venceLogo,
+    };
+  }
+  return { text: dataFormatada, className: "" };
+};
 
 export default function Produtos() {
   const [products, setProducts] = useState([]);
@@ -47,8 +77,11 @@ export default function Produtos() {
 
   const addProduct = async (product) => {
     try {
-      const { nome, preco, estoque } = product;
-      await supabase.from("produtos").insert([{ nome, preco, estoque }]);
+      // Inclui a validade no objeto a ser inserido
+      const { nome, preco, estoque, validade } = product;
+      await supabase
+        .from("produtos")
+        .insert([{ nome, preco, estoque, validade }]);
       await fetchProducts();
       setIsModalOpen(false);
     } catch (error) {
@@ -58,10 +91,11 @@ export default function Produtos() {
 
   const updateProduct = async (updatedProduct) => {
     try {
-      const { id, nome, preco, estoque } = updatedProduct;
+      // Inclui a validade no objeto a ser atualizado
+      const { id, nome, preco, estoque, validade } = updatedProduct;
       await supabase
         .from("produtos")
-        .update({ nome, preco, estoque })
+        .update({ nome, preco, estoque, validade })
         .eq("id", id);
       await fetchProducts();
       setIsModalOpen(false);
@@ -72,11 +106,7 @@ export default function Produtos() {
   };
 
   const deleteProduct = async (id) => {
-    if (
-      window.confirm(
-        "Tem certeza que deseja desativar este produto? Ele não aparecerá mais para novos pedidos."
-      )
-    ) {
+    if (window.confirm("Tem certeza que deseja desativar este produto?")) {
       try {
         await supabase.from("produtos").update({ ativo: false }).eq("id", id);
         await fetchProducts();
@@ -119,16 +149,18 @@ export default function Produtos() {
       "nome",
       "preco",
       "estoque",
+      "validade",
     ]);
   };
 
   const handleExportPDF = () => {
-    const headers = [["ID", "Nome", "Preço Unitário", "Estoque"]];
+    const headers = [["ID", "Nome", "Preço", "Estoque", "Validade"]];
     const data = filteredAndSortedProducts.map((prod) => [
       prod.id,
       prod.nome,
       prod.preco,
       prod.estoque,
+      getValidadeStatus(prod.validade).text,
     ]);
     exportToPDF(headers, data, "produtos");
   };
@@ -199,6 +231,18 @@ export default function Produtos() {
                     ))}
                 </div>
               </th>
+              {/* Nova coluna para a validade */}
+              <th className={styles.th} onClick={() => handleSort("validade")}>
+                <div className={styles.sortableHeaderContent}>
+                  Validade{" "}
+                  {sortBy === "validade" &&
+                    (sortOrder === "asc" ? (
+                      <ChevronUp size={14} />
+                    ) : (
+                      <ChevronDown size={14} />
+                    ))}
+                </div>
+              </th>
               <th className={styles.th}>Ações</th>
             </tr>
           </thead>
@@ -206,36 +250,43 @@ export default function Produtos() {
             {filteredAndSortedProducts.length === 0 ? (
               <tr>
                 <td
-                  colSpan="4"
+                  colSpan="5"
                   style={{ textAlign: "center", padding: "20px" }}
                 >
                   Nenhum produto encontrado.
                 </td>
               </tr>
             ) : (
-              filteredAndSortedProducts.map((product) => (
-                <tr key={product.id}>
-                  <td className={styles.td}>{product.nome}</td>
-                  <td className={styles.td}>
-                    R$ {Number(product.preco).toFixed(2)}
-                  </td>
-                  <td className={styles.td}>{product.estoque}</td>
-                  <td className={styles.tdActions}>
-                    <button
-                      onClick={() => openEditModal(product)}
-                      className={styles.actionButton}
-                    >
-                      <Edit size={16} />
-                    </button>
-                    <button
-                      onClick={() => deleteProduct(product.id)}
-                      className={`${styles.actionButton} ${styles.deleteButton}`}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
-                </tr>
-              ))
+              filteredAndSortedProducts.map((product) => {
+                const validadeInfo = getValidadeStatus(product.validade);
+                return (
+                  <tr key={product.id}>
+                    <td className={styles.td}>{product.nome}</td>
+                    <td className={styles.td}>
+                      R$ {Number(product.preco).toFixed(2)}
+                    </td>
+                    <td className={styles.td}>{product.estoque}</td>
+                    {/* Célula da validade com estilo dinâmico */}
+                    <td className={`${styles.td} ${validadeInfo.className}`}>
+                      {validadeInfo.text}
+                    </td>
+                    <td className={styles.tdActions}>
+                      <button
+                        onClick={() => openEditModal(product)}
+                        className={styles.actionButton}
+                      >
+                        <Edit size={16} />
+                      </button>
+                      <button
+                        onClick={() => deleteProduct(product.id)}
+                        className={`${styles.actionButton} ${styles.deleteButton}`}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -253,7 +304,7 @@ export default function Produtos() {
 
 function ProductFormModal({ product, onSave, onClose }) {
   const [formData, setFormData] = useState(
-    product || { nome: "", preco: "", estoque: "" }
+    product || { nome: "", preco: "", estoque: "", validade: "" }
   );
 
   const handleChange = (e) => {
@@ -267,7 +318,7 @@ function ProductFormModal({ product, onSave, onClose }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.nome || !formData.preco || !formData.estoque) {
-      alert("Por favor, preencha todos os campos.");
+      alert("Por favor, preencha todos os campos obrigatórios.");
       return;
     }
     onSave(formData);
@@ -305,6 +356,17 @@ function ProductFormModal({ product, onSave, onClose }) {
               type="number"
               name="estoque"
               value={formData.estoque}
+              onChange={handleChange}
+              className={styles.inputField}
+            />
+          </div>
+          {/* Novo campo para a data de validade */}
+          <div className={styles.formGroup}>
+            <label>Data de Validade:</label>
+            <input
+              type="date"
+              name="validade"
+              value={formData.validade}
               onChange={handleChange}
               className={styles.inputField}
             />

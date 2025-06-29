@@ -12,6 +12,16 @@
   flex-wrap: wrap;
 }
 
+.vencido {
+  color: #dc3545;
+  font-weight: bold;
+}
+
+.venceLogo {
+  color: #ffc107;
+  font-weight: bold;
+}
+
 .searchInput {
   padding: 8px 12px;
   border: 1px solid #ccc;
