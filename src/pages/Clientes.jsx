@@ -85,7 +85,7 @@ export default function Clientes() {
       }
     }
   };
-
+  // Função para abrir o modal de adição de cliente
   const openAddModal = () => {
     setCurrentClient(null);
     setIsModalOpen(true);
