@@ -32,11 +32,21 @@ export default function Dashboard() {
           pedidoItensData,
           produtosData,
         ] = await Promise.all([
-          supabase.from("produtos").select("*", { count: "exact", head: true }),
-          supabase.from("clientes").select("*", { count: "exact", head: true }),
+          supabase
+            .from("produtos")
+            .select("*", { count: "exact", head: true })
+            .eq("ativo", true),
+
+          supabase
+            .from("clientes")
+            .select("*", { count: "exact", head: true })
+            .eq("ativo", true),
+
           supabase.from("pedidos").select("valor_total, created_at"),
           supabase.from("pedido_itens").select("produto_id, quantidade"),
-          supabase.from("produtos").select("id, nome"),
+
+          // Busca nomes de produtos ativos para o card "Mais Vendido"
+          supabase.from("produtos").select("id, nome").eq("ativo", true),
         ]);
 
         if (produtosCount.error) throw produtosCount.error;
@@ -84,7 +94,7 @@ export default function Dashboard() {
             (p) => p.id === Number(mostSoldProductId)
           );
           setTopProduct(
-            topProductInfo ? topProductInfo.nome : "Não encontrado"
+            topProductInfo ? topProductInfo.nome : "Produto inativo"
           );
         } else {
           setTopProduct("Nenhum");

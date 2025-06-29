@@ -38,7 +38,7 @@ export default function Pedidos() {
       const orderIds = ordersData.map((o) => o.id);
       if (orderIds.length === 0) {
         setOrders([]);
-        setLoading(false);
+
         return;
       }
 
@@ -64,35 +64,70 @@ export default function Pedidos() {
     } catch (error) {
       alert("Erro ao carregar pedidos: " + error.message);
     } finally {
-      setLoading(false);
+      setLoading(false); // O loading finaliza aqui, após todas as buscas
     }
   }, [sortBy, sortOrder]);
 
   useEffect(() => {
-    async function fetchInitialData() {
+    async function fetchPageData() {
+      setLoading(true);
       try {
+        // 1. Busca apenas CLIENTES ATIVOS para o formulário
         const { data: clientsData, error: clientsError } = await supabase
           .from("clientes")
-          .select("*");
+          .select("*")
+          .eq("ativo", true);
         if (clientsError) throw clientsError;
         setClients(clientsData);
 
+        // 2. Busca apenas PRODUTOS ATIVOS para o formulário
         const { data: productsData, error: productsError } = await supabase
           .from("produtos")
-          .select("*");
+          .select("*")
+          .eq("ativo", true);
         if (productsError) throw productsError;
         setProducts(productsData);
+
+        // 3. Busca os pedidos
+        const { data: ordersData, error: ordersError } = await supabase
+          .from("pedidos")
+          .select("*, clientes (id, nome)")
+          .order("created_at", { ascending: "desc" }); // Padrão inicial
+        if (ordersError) throw ordersError;
+
+        const orderIds = ordersData.map((o) => o.id);
+        if (orderIds.length > 0) {
+          const { data: itemsData, error: itemsError } = await supabase
+            .from("pedido_itens")
+            .select("*, produtos (id, nome, preco)")
+            .in("pedido_id", orderIds);
+          if (itemsError) throw itemsError;
+
+          const itemsByOrderId = itemsData.reduce((acc, item) => {
+            if (!acc[item.pedido_id]) acc[item.pedido_id] = [];
+            acc[item.pedido_id].push(item);
+            return acc;
+          }, {});
+
+          const combinedOrders = ordersData.map((order) => ({
+            ...order,
+            itens: itemsByOrderId[order.id] || [],
+          }));
+          setOrders(combinedOrders);
+        } else {
+          setOrders([]);
+        }
       } catch (error) {
-        alert(
-          "Erro ao carregar dados iniciais para o formulário: " + error.message
-        );
+        alert("Erro ao carregar dados da página: " + error.message);
+      } finally {
+        setLoading(false);
       }
     }
-    fetchInitialData();
-  }, []);
+    fetchPageData();
+  }, []); // Roda apenas uma vez ao carregar a página
 
-  useEffect(() => {
-    fetchOrders();
+  const refreshOrders = useCallback(async () => {
+    await fetchOrders();
   }, [fetchOrders]);
 
   const addOrder = async (orderData) => {
@@ -113,7 +148,7 @@ export default function Pedidos() {
       }));
 
       await supabase.from("pedido_itens").insert(itemsToInsert);
-      await fetchOrders();
+      await refreshOrders(); // Atualiza a lista de pedidos
       setIsModalOpen(false);
     } catch (error) {
       alert("Erro ao adicionar pedido: " + error.message);
@@ -125,7 +160,7 @@ export default function Pedidos() {
       try {
         await supabase.from("pedido_itens").delete().eq("pedido_id", orderId);
         await supabase.from("pedidos").delete().eq("id", orderId);
-        await fetchOrders();
+        await refreshOrders(); // Atualiza a lista de pedidos
       } catch (error) {
         alert("Erro ao deletar pedido: " + error.message);
       }
@@ -153,7 +188,7 @@ export default function Pedidos() {
         await supabase.from("pedido_itens").insert(itemsToInsert);
       }
 
-      await fetchOrders();
+      await refreshOrders(); // Atualiza a lista de pedidos
       setIsModalOpen(false);
       setCurrentOrder(null);
     } catch (error) {
@@ -182,7 +217,7 @@ export default function Pedidos() {
     if (!order.clientes) return false;
     const clientName = order.clientes.nome.toLowerCase();
     const orderProducts = order.itens
-      .map((item) => item.produtos.nome.toLowerCase())
+      .map((item) => (item.produtos ? item.produtos.nome.toLowerCase() : ""))
       .join(", ");
     const orderDate = new Date(order.created_at).toLocaleDateString("pt-BR");
     return (
@@ -329,14 +364,18 @@ export default function Pedidos() {
               filteredOrders.map((order) => (
                 <tr key={order.id}>
                   <td className={styles.td}>{order.id}</td>
-                  <td className={styles.td}>{order.clientes.nome}</td>
+                  <td className={styles.td}>
+                    {order.clientes ? order.clientes.nome : "Cliente Removido"}
+                  </td>
                   <td className={styles.td}>
                     {new Date(order.created_at).toLocaleDateString("pt-BR")}
                   </td>
                   <td className={styles.td}>
                     {order.itens
-                      .map(
-                        (item) => `${item.produtos.nome} (${item.quantidade})`
+                      .map((item) =>
+                        item.produtos
+                          ? `${item.produtos.nome} (${item.quantidade})`
+                          : `Produto Removido (${item.quantidade})`
                       )
                       .join(", ")}
                   </td>
@@ -384,10 +423,10 @@ function OrderFormModal({ order, onSave, onClose, clients, products }) {
     order
       ? {
           id: order.id,
-          cliente_id: order.clientes.id,
+          cliente_id: order.clientes ? order.clientes.id : "",
           created_at: order.created_at,
           itens: order.itens.map((item) => ({
-            produto_id: item.produtos.id,
+            produto_id: item.produtos ? item.produtos.id : "",
             quantidade: item.quantidade,
             preco_no_momento: item.preco_no_momento,
           })),

@@ -48,9 +48,11 @@ export default function Clientes() {
   const addClient = async (client) => {
     try {
       const { nome, cpf_cnpj, email, telefone } = client;
+
       await supabase
         .from("clientes")
-        .insert([{ nome, cpf_cnpj, email, telefone }]);
+        .insert([{ nome, cpf_cnpj, email, telefone, ativo: true }]);
+
       await fetchClients();
       setIsModalOpen(false);
     } catch (error) {
