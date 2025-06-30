@@ -25,16 +25,15 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// O Layout agora é um componente separado, o que melhora a performance e a animação.
-// Ele recebe o estado 'collapsed' para ajustar o layout do conteúdo principal.
+
 const Layout = ({ collapsed }) => {
   return (
     <div style={{ display: "flex" }}>
-      {/* A Sidebar é renderizada aqui, mas o seu estado é controlado pelo App */}
+      
       <div
         style={{
           flexGrow: 1,
-          // A margem e a transição são aplicadas aqui, garantindo o movimento suave
+          
           marginLeft: collapsed ? "80px" : "220px",
           transition: "margin-left 0.3s ease",
         }}
@@ -78,7 +77,7 @@ function App() {
   return (
     <AuthContext.Provider value={{ isAuthenticated, setIsAuthenticated }}>
       <Router>
-        {/* A Sidebar é renderizada fora das rotas para ser persistente */}
+        
         {isAuthenticated && (
           <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
         )}
