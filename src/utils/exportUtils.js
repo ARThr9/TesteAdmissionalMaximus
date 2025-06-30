@@ -1,7 +1,7 @@
 // src/utils/exportUtils.js
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
-import "jspdf-autotable"; // Esta linha é crucial para o plugin
+import "jspdf-autotable"; 
 
 export const exportToExcel = (data, fileName, headers) => {
   const mappedData = data.map((item) =>
